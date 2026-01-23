@@ -1,0 +1,729 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: {{ include "Epay_Admin_Service.fullname" . }}
+  labels:
+    {{- include "Epay_Admin_Service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  # >>> MODIFIED: use centralized helper to resolve replica count (falls back to .Values.replicaCount)
+  replicas: {{ include "common.replicas" . }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "Epay_Admin_Service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "Epay_Admin_Service.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "Epay_Admin_Service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }} 
+          image: "{{ tpl .Values.image.repository $ }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+          - name: SPRING_CONFIG_LOCATION
+            value: file:/opt/gradle/
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: my-secrets-admin-service-secret
+                key: DB_USERNAME
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: my-secrets-admin-service-secret
+                key: DB_PASSWORD
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              # path: {{ .Values.prefixName }}/actuator/health
+              # port: {{ .Values.service.port }}
+              path: {{ .Values.readinessProbe.httpGet.path }}
+              port: {{ .Values.readinessProbe.httpGet.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          {{- end }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              # path: {{ .Values.prefixName }}/actuator/health
+              # port: {{ .Values.service.port }}
+              path: {{ .Values.livenessProbe.httpGet.path }}
+              port: {{ .Values.livenessProbe.httpGet.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 6
+            successThreshold: 1
+          {{- end }}                
+          volumeMounts:
+            - name: config
+              mountPath: "/opt/gradle"
+            - name: payment-upivpaqr-cert
+              readOnly: true
+              mountPath: /certs
+            # - name: gemfire-admin-cert
+            #   readOnly: true
+
+
+------------------------------------------------------------------------------------------------------
+
+
+helper.tpl
+
+
+{{/* >>> NEW: common.replicas helper
+     Priority to find replica count:
+       1) .Values.serviceName (if provided)
+       2) .Chart.Name
+       3) .Chart.Name with hyphens replaced by underscores
+       4) lowercase .Chart.Name
+       5) lowercase .Chart.Name with hyphens replaced by underscores
+     Fallback: .Values.replicaCount -> 1
+*/}}
+{{- define "common.replicas" -}}
+  {{- $global := .Values.global | default dict -}}
+  {{- $replicasMap := index $global "replicas" | default dict -}}
+
+  {{- /* candidate keys to try (in order) */ -}}
+  {{- $cand1 := default "" .Values.serviceName -}}
+  {{- $cand2 := .Chart.Name -}}
+  {{- $cand3 := replace "-" "_" .Chart.Name -}}
+  {{- $cand4 := lower .Chart.Name -}}
+  {{- $cand5 := replace "-" "_" (lower .Chart.Name) -}}
+
+  {{- /* check candidates one by one */ -}}
+  {{- if and $cand1 (index $replicasMap $cand1) -}}
+    {{- (index $replicasMap $cand1) | int -}}
+  {{- else if index $replicasMap $cand2 -}}
+    {{- (index $replicasMap $cand2) | int -}}
+  {{- else if index $replicasMap $cand3 -}}
+    {{- (index $replicasMap $cand3) | int -}}
+  {{- else if index $replicasMap $cand4 -}}
+    {{- (index $replicasMap $cand4) | int -}}
+  {{- else if index $replicasMap $cand5 -}}
+    {{- (index $replicasMap $cand5) | int -}}
+  {{- else -}}
+    {{- (default 1 .Values.replicaCount) | int -}}
+  {{- end -}}
+{{- end }}
+
+{{- /* existing helpers preserved below (unchanged) */ -}}
+
+{{- define "Epay_Admin_Service.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "Epay_Admin_Service.fullname" -}}
+{{- if .Values.fullnameOverride }}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- $name := default .Chart.Name .Values.nameOverride }}
+{{- if contains $name .Release.Name }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- define "Epay_Admin_Service.chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "Epay_Admin_Service.labels" -}}
+helm.sh/chart: {{ include "Epay_Admin_Service.chart" . }}
+{{ include "Epay_Admin_Service.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{- define "Epay_Admin_Service.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "Epay_Admin_Service.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{- define "Epay_Admin_Service.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "Epay_Admin_Service.fullname" .) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
+-----------------------------------------------
+
+Hi Team,
+Please find attached the proposed approach and sample implementation for managing global configurations. This is a major change that will require sufficient time and thorough testing, along with necessary CI pipeline updates.
+While the current POC approach may work, it presents the following challenges:
+Template duplication across multiple microservices
+Complex template expressions for handling global values
+Lack of shared/common templates
+Environment-specific configurations scattered across services
+Difficulty in maintaining consistency across environments
+
+-----------------------------------------------------------------------------------------------------------------------
+
+3. How is a Docker client different from a Docker daemon? Can you share an example? 
+The Docker client and Docker daemon work side-by-side but have separate roles. The Docker client is the tool that sends commands and the Docker daemon is the engine that acts on those commands. 
+
+For example, if we type the docker run command to start a container, the client will take the request and send it to the Docker daemon. The Docker daemon will then handle the real work by starting the container. 
+
+4. Can you explain what Docker networking is and which commands can create a bridge and an overlay network?
+Docker networking allows containers to connect and communicate with other containers and hosts. The docker network create command allows us to set up user-defined networks.  
+
+Bridge network: Creates a local network for communication between containers on the same Docker host.
+Command: docker network create -d bridge my-bridge-network
+This sets up a bridge network called my-bridge-network for containers on the same host.
+Overlay network: Enables communication between containers across multiple Docker hosts, often used in a Swarm setup.
+Command: docker network create --scope=swarm --attachable -d overlay my-multihost-network
+This creates an attachable overlay network called my-multihost-network for containers running on different hosts in a Docker Swarm.
+
+7. What is Docker Compose, and how is it different from Dockerfile?
+Docker Compose is a tool for defining and managing multi-container Docker applications using a YAML file (docker-compose.yml). It allows us to configure services, networks, and volumes in a single file, making it easier to manage complex applications.
+
+Differences from Dockerfile:
+
+A Dockerfile is used to build a single Docker image by defining its layers and dependencies.
+Docker Compose is used to run and orchestrate multiple containers that may rely on each other (e.g., a web app container and a database container).
+For example, a docker-compose.yml file might look like this:
+
+version: '3.9'
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+  db:
+    image: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+volumes:
+  db-data:
+
+Powered By 
+This file defines two services, web and db, with networking and volume configurations.
+
+8. Why do we use volumes in Docker? 
+We use Docker volumes to keep data safe outside of Docker containers. They provide a separate location on hosts where data lives even if the container gets removed. Also, it's easier to manage, back up, and share the volumes among containers. 
+
+9. What are Docker bind mounts, and why do we prefer volumes over bind mounts? 
+With Docker bind mounts, we can share files between the host machine and a container. They connect a specific file on the host system to a location in the container. If we make any changes to files, it'll instantly show up inside the container. 
+
+Docker mounts are suitable for real-time file sharing — but they rely on the host OS, which raises security issues. 
+
+On the contrary, since Docker volumes work independently, they're more secure than mounts.
+
+Diagram of docker bind mounts and volumes
+
+Diagram of docker bind mounts and volumes. Image source: Docker
+
+10. What is Docker Swarm?
+Docker Swarm is a container orchestration tool that manages and deploys services across a cluster of Docker nodes. It enables high availability, scalability, and load balancing, allowing multiple hosts to act as a single virtual Docker engine.
+
+11. Can we autoscale Docker Swarm?
+No, Docker Swarm does not natively support automatic autoscaling. To achieve autoscaling, we need to integrate monitoring tools and use scripts to manually adjust the number of instances. Here's how: 
+
+Install a monitoring tool, like Prometheus or Grafana, to track resource usage, like CPU and memory.
+Set the scaling triggers. For instance, we can define that CPU usage over 82% will trigger scaling up. 
+Next, write a script with the docker service scale command to adjust the number of replicas. For example, to scale a service to 5 replicas: docker service scale <service_name>=5
+By combining monitoring tools, triggers, and scripts, you can implement a form of autoscaling in Docker Swarm, even though it’s not built-in.
+
+16. Tell me about 3 best practices to keep a Docker container safe.
+To enhance container security and minimize common vulnerabilities, I follow these best practices:
+
+Choose lightweight images: Use minimal base images like Alpine to reduce the attack surface. 
+Limit system calls: Since Docker containers can access unnecessary calls, use tools like Seccomp to restrict these calls. 
+Secure sensitive data: Use Docker secrets to manage API keys or passwords. They encrypt the secrets and make them available only during runtime. 
+
+21. How does Kubernetes manage a large number of Docker containers?
+While Docker is great for creating and running containers, managing a large number of them requires Kubernetes. Kubernetes orchestrates containers efficiently by:
+
+Setting resource limits: It allocates CPU, memory, and other resources to each container to prevent overconsumption.
+Scheduling containers: Kubernetes decides where to run each container, optimizing resource utilization across nodes in a cluster.
+Scaling automatically: Based on workload demand, it scales pods (groups of one or more containers) up or down to maintain performance and efficiency.
+23. How can you manage sensitive data like passwords in Docker and Kubernetes?
+In Docker: We can use Docker secrets, which encrypt sensitive data and make it accessible only to authorized containers at runtime.
+In Kubernetes: We use Secrets objects, which store sensitive data like passwords, tokens, and API keys. Secrets can be mounted as volumes or exposed as environment variables to pods securely.
+Example in Kubernetes:
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+data:
+  password: cGFzc3dvcmQ=  # Base64-encoded "password"
+
+Powered By 
+Scenario-Based Docker Interview Questions
+The interviewer asks scenario-based and problem-solving questions to test how you approach real-world problems. Let's take a look at some questions to give you an idea: 
+
+24. Imagine you're creating an image of a Maven-based API. You've already set up the Dockerfile with basic configurations. Now, you notice the image size is large. How would you reduce it? 
+Example answer:
+
+To reduce the size of a Docker image for a Maven-based API, I would follow these steps:
+
+Create a .dockerignore file in the project directory to specify files and folders that should not be included in the Docker build context. This prevents unnecessary files from being added to the image, reducing its size. For example, I’d add the following to .dockerignore:
+
+.git        # Version control files
+target      # Compiled code and build artifacts
+.idea       # IDE configuration files
+
+Powered By 
+Optimize the Dockerfile using multi-stage builds. I’d build the Maven project in one stage and copy only the necessary artifacts (e.g., compiled JAR files) into the final stage to keep the image small. Example Dockerfile with multi-stage build:
+
+# Stage 1: Build the application
+FROM maven:3.8.5-openjdk-11 AS build
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package
+# Stage 2: Create a lightweight runtime image
+FROM openjdk:11-jre-slim
+WORKDIR /app
+COPY --from=build /app/target/my-api.jar .
+CMD ["java", "-jar", "my-api.jar"]
+
+Powered By 
+By ignoring unnecessary files and using multi-stage builds, one can significantly reduce the image size while maintaining efficiency.
+
+25. Imagine you need to push a Docker container image to the Docker Hub with Jenkins. How would you do that?
+Example answer:
+
+Here's how I’d push a Docker container image to Docker Hub with Jenkins: 
+
+Configure a Jenkins pipeline: Create a multi-branch pipeline job in Jenkins and link it to the repository containing the Dockerfile and Jenkinsfile.
+Define the pipeline in my Jenkinsfile: The Jenkinsfile would include the following steps:
+Build the Docker image
+Log in to Docker Hub (using credentials stored securely in Jenkins)
+Push the image to Docker Hub
+Run the pipeline: Trigger the Jenkins job. It will build the image, log in to Docker Hub, and push the image automatically.
+
+What is a Pod in Kubernetes?
+A Pod is the smallest deployable unit in Kubernetes. It represents one or more containers running in a shared environment. Containers inside a Pod share networking and storage resources.
+
+                                                     kubernetes
+
+1. Here’s a simple Pod definition YAML file:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx:1.21
+    ports:
+    - containerPort: 80
+
+ 2.  What is the purpose of kubectl?
+Kubectl is the primary CLI tool for managing Kubernetes resources and interacting with the cluster. Here are a few common kubectl commands you should be familiar with:
+
+kubectl get pods 				 # list all Pods
+kubectl get services 			 # list all Services
+kubectl logs <pod-name> 	  	 # view logs of a Pod
+kubectl exec -it <pod-name> – /bin/sh # open a shell inside a Pod
+
+Powered By 
+3. What is a Deployment in Kubernetes?
+A Deployment in Kubernetes is a higher-level abstraction that manages the lifecycle of Pods. It ensures that the desired number of replicas are up and running and provides features like rolling updates, rollbacks, and self-healing. 
+
+Here’s how a simple Deployment definition YAML file looks like: 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+
+
+4. What is a Kubernetes Service, and why is it needed?
+A Service in Kubernetes exposes a group of Pods and allows communication between and to them. 
+
+Since Pods are ephemeral, their IPs can change, meaning the application talking to the Pods must also change the IP address. Services, therefore, provide a stable network endpoint with a fixed IP address.
+
+A simple Service YAML definition:
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+
+  5. What service types are available at Kubernetes Services?
+Kubernetes provides four main types of Services, each serving a different networking purpose:
+
+ClusterIP (default): Allows for internal communication of Pods. Only accessible from within the cluster.
+NodePort: This exposes the Service on a static port of each Node, making It accessible from outside the cluster.
+LoadBalancer: Uses a cloud provider’s external load balancer. The Service is then accessible via a public IP.
+ExternalName: Maps a Kubernetes Service to an external hostname. 
+
+6. What is the role of ConfigMaps and secrets in Kubernetes?
+ConfigMaps stores non-sensitive configuration data, while secrets stores sensitive data like API keys and passwords.
+
+Using secrets allows you to avoid putting secret information into your application code. In contrast, ConfigMaps will enable you to make your applications more configurable, as these values can be easily edited, and you don’t need to persist them in your application code.
+
+Example ConfigMap YAML definition:
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config
+data:
+  database_url: "postgres://db.example.com"
+
+Powered By 
+Example secret YAML definition (with base64 encoded data):
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+data:
+  password: cGFzc3dvcmQ=  # "password" encoded in Base64
+
+Powered By 
+7. What are Namespaces in Kubernetes?
+A Namespace is a virtual cluster within a Kubernetes cluster. It helps to organize workloads in multi-tenant environments by isolating resources within a cluster.
+
+Below, you can find a short code snippet that shows how to create a Namespace using kubectl and how to create and fetch Pods in that Namespace:
+
+# create a namespace called “dev”
+kubectl create namespace dev
+
+# create a Pod in that namespace
+kubectl run nginx --image=nginx --namespace=dev
+
+# get Pods in that namespace
+kubectl get pods --namespace=dev
+
+Powered By 
+What are Labels and Selectors in Kubernetes?
+Labels are key/value pairs attached to objects (e.g. Pods). They help to organize Kubernetes objects. Selectors filter resources based on Labels. 
+
+Here is an example Pod that has the labels environment: production and app: nginx:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+  labels:
+    environment: production
+    app: nginx
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx:1.21
+    ports:
+    - containerPort: 80
+
+8. What are Persistent Volumes (PVs) and Persistent Volume Claims (PVCs)?
+Persistent Volumes (PVs) provide storage that persists beyond Pod lifecycles. The PV is a storage piece in the cluster that has been provisioned by a cluster administrator or dynamically provisioned using Storage Classes.
+
+A Persistent Volume Claim (PVC) is a request for storage by a user. 
+
+Here’s an example PV and PVC YAML definition:
+
+9.What is Kubernetes networking, and how does it work?
+Kubernetes networking allows for communication between Pods, Services, and external clients. It follows a flat networking structure, meaning that, by default, all Pods can communicate with each other.  
+
+Key networking concepts in Kubernetes include:
+
+Pod-to-pod communication: Each Pod gets a unique IP assigned and can communicate within the cluster. 
+Service-to-pod communication: Services provide a stable network endpoint for a group of Pods, as Pods are ephemeral. Each pod gets a new IP assigned every time it is created.
+Ingress controllers: Manage external HTTP/HTTPS traffic.
+Network policies: Define rules to restrict or allow communication between Pods.
+
+10. What is Role-Based Access Control (RBAC) in Kubernetes?
+RBAC is a security mechanism that restricts users and services based on their permissions. It consists of:
+
+Roles and ClusterRoles: Define the actions allowed on resources.
+RoleBindings and ClusterRoleBindings: Assign roles to users or service accounts.
+The following YAML shows an example role that only allows read-only access to Pods:
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "watch", "list"]
+
+Powered By 
+This pod-reader role can now be bound to a user using RoleBinding:
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-reader-binding
+subjects:
+  - kind: User
+    name: dummy
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+Powered By
+
+11. How does Kubernetes autoscaling work?
+Kubernetes provides three types of autoscaling to optimize resource usage:
+
+Horizontal Pod Autoscaler (HPA): Adjusts the number of Pods based on CPU usage, memory usage, or custom metrics.
+Vertical Pod Autoscaler (VPA): Adjusts the CPU and memory requests for individual Pods.
+Cluster Autoscaler: Adjusts the number of worker nodes in the cluster based on resource needs.
+You can create an HPA using kubectl:
+
+kubectl autoscale deployment nginx --cpu-percent=50 --min=1 --max=10
+
+Powered By 
+The above command creates an HPA for a Deployment with the name nginx and tries to keep the average CPU utilization across all Pods at 50%, with a minimum number of replicas at 1 and a maximum number of replicas at 10.
+
+12. How do you debug Kubernetes Pods?
+
+13.How do you perform rolling updates and rollbacks in Kubernetes?
+Kubernetes Deployments support rolling updates to avoid downtime. You can perform a rolling update by editing a Deployment or explicitly setting its image to a new version using:
+
+kubectl set image deployment/my-deployment nginx=nginx:1.21
+
+Powered By 
+You can then check the Deployment status:
+
+kubectl rollout status deployment my-deployment
+
+Powered By 
+If you want to roll back to the previous version, you can run:
+
+kubectl rollout undo deployment my-deployment
+
+
+14. What is an Ingress in Kubernetes, and how does it work?
+An Ingress is an API object that manages external HTTP/HTTPS access to Services inside a Kubernetes cluster.  It allows routing requests based on hostname and paths, acting as a reverse proxy for multiple applications.
+
+Example Ingress YAML definition:
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-ingress
+spec:
+  rules:
+    - host: my-app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-service
+                port:
+                  number: 80
+
+ 
+15. How does Kubernetes handle resource limits and requests?
+Kubernetes allows you to set resource requests and limits for Pods to ensure fair allocation and avoid the overuse of cluster resources.
+
+Requests are the minimum amount of CPU and memory a Pod needs. They are permanently assigned to a Pod. 
+Limits are the maximum a Pod can use. They are not assigned to the Pod, but if it requires more resources, it can grow until the limit is reached.
+Example YAML Pod definition that sets resource requests and limits:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: resource-limited-pod
+spec:
+  containers:
+    - name: my-container
+      image: nginx
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "250m"
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
+
+
+16. What happens if a Pod resource needs to grow beyond the assigned limits?
+If a Pod’s memory consumption exceeds its assigned memory limit, Kubernetes immediately kills the container with an out of memory (OOM) error. The container restarts if a restart policy is defined.
+
+Unlike memory, if a Pod exceeds its assigned CPU limit, it is not killed. Instead, Kubernetes throttles CPU usage, causing the application to slow down.
+
+17. What are init containers, and when should you use them?
+Init containers are special containers that run before the primary containers start. They help prepare the environment by checking dependencies, loading configuration files, or setting up data.
+
+One example could be an init container that waits for a database to be up and running:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-init
+spec:
+  initContainers:
+    - name: wait-for-db
+      image: busybox
+      command: ['sh', '-c', 'until nc -z db-service 5432; do sleep 2; done']
+  containers:
+    - name: my-app
+      image: my-app-image
+
+
+18. How does Kubernetes handle Pod disruptions and high availability?
+Kubernetes ensures high availability through Pod Disruption Budgets (PDBs), anti-affinity rules, and self-healing mechanisms. Here’s how these mechanisms work:
+
+Pod Disruption Budget (PDB): Ensures a minimum number of Pods remain available during voluntary disruptions (e.g., cluster updates where nodes need to be scaled down).
+Pod affinity and anti-affinity: Controls for which Pods can be scheduled together or separately.
+Node selectors and Taints/Tolerations: Control how workloads are distributed across Nodes.
+Here’s an example PDB YAML definition that ensures that at least two Pods remain running during disruptions:
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: my-app-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: my-app
+
+
+19. Advanced Kubernetes Interview Questions
+This section covers advanced Kubernetes interview questions, focusing on stateful applications, multi-cluster management, security, performance optimization, and troubleshooting. If you’re applying to a senior position, make sure to check these out.
+
+What are StatefulSets, and how do they differ from Deployments?
+A StatefulSet is used for stateful applications that require stable network identities, persistent storage, and ordered deployment. Unlike Deployments, StatefulSets ensure that:
+
+Pods have stable and unique network identities, where Pods are named like pod-0, pod-1 etc.
+Pods are created, updated, and deleted in order.
+Each Pod retains persistent storage across restarts. Persistent storage is defined as part of the StatefulSet YAML definition.
+What is a service mesh, and why is it used in Kubernetes?
+A service mesh manages service-to-service communication, providing:
+
+Traffic management (load balancing, canary deployments).
+Security (mTLS encryption between services).
+Observability (tracing, metrics, logging)
+All these features are included in the infrastructure layer, so no code changes are required. 
+
+Popular Kubernetes service mesh solutions include: Istio, Linkerd and Consul.
+
+How can you secure a Kubernetes cluster?
+Follow the 4C security model to secure a Kubernetes cluster:
+
+Cloud provider security: Use IAM roles and firewall rules.
+Cluster security: Enable RBAC, audit logs, and API server security.
+Container security: Scan images and use non-root users.
+Code security: Implement secrets management and use network policies.
+What are Taints and Tolerations in Kubernetes?
+Taints and Tolerations control where Pods run:
+
+Taints: Mark nodes to reject Pods.
+Tolerations: Allow Pods to ignore certain Taints.
+Here’s an example for tainting a node only to accept specific workloads:
+
+kubectl taint nodes node1 key1=value1:NoSchedule
+
+
+20. This means no Pod can be scheduled on node1 until it has the required Toleration.
+
+A Toleration is added in the PodSpec section like the following:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    env: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    imagePullPolicy: IfNotPresent
+  tolerations:
+  - key: "key1"
+    operator: "Equal"
+    value: “value1”
+    effect: "NoSchedule"
+
+
+21. The Pod would be allowed to be scheduled on node1.
+
+What are Kubernetes sidecar containers, and how are they used?
+A sidecar container runs alongside the main application container inside the same Pod. It is commonly used for:
+
+Logging and monitoring (e.g. collecting logs with Fluentd).
+Security proxies (e.g. running Istio’s Envoy proxy for service mesh).
+Configuration management (e.g. syncing application settings).
+Example sidecar container for log processing:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-sidecar
+spec:
+  containers:
+    - name: main-app
+      image: my-app
+      volumeMounts:
+        - mountPath: /var/log
+          name: shared-logs
+    - name: log-collector
+      image: fluentd
+      volumeMounts:
+        - mountPath: /var/log
+          name: shared-logs
+  volumes:
+    - name: shared-logs
+      emptyDir: {}

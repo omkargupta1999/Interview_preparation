@@ -1,0 +1,73 @@
+1. Scripting Fundamentals & Concepts
+
+Q: Does CI/CD require programming knowledge?
+
+A: While GUI-based CI/CD tools can be used without extensive programming, implementing robust, customized, and automated pipelines, especially using "pipeline-as-code" (e.g., Jenkinsfile, GitLab CI YAML), requires strong scripting knowledge (Bash, Python) to manage tasks like file manipulation, environment setup, and error handling.
+
+Q: How is shell scripting used in DevOps and CI/CD pipelines?
+
+A: Shell scripts automate repetitive tasks within the pipeline, such as managing file permissions, archiving logs, running build commands (e.g., npm install, mvn clean install), triggering deployments, and monitoring system health. They ensure consistency and efficiency across different environments.
+Q: What is the purpose of set -e in a shell script used in a CI pipeline?
+
+A: set -e ensures that the script will immediately exit if any command fails (returns a non-zero exit status). This is critical in a CI pipeline to prevent subsequent, dependent steps from running with potentially corrupted or incomplete results, thus failing the build early and clearly.
+
+2. Practical Scripting Scenarios
+
+Q: How do you handle secrets and sensitive information (passwords, API keys) in a CI/CD pipeline script?
+
+A: Secrets should never be hard-coded. The script should retrieve sensitive information from secure storage solutions like HashiCorp Vault, AWS Secrets Manager, or the CI platform's built-in secure environment variables. Access controls (RBAC) should be implemented to ensure only authorized personnel and processes can access them.
+
+Q: Write a simple shell script to check if a service is running and restart it if it is not.
+
+A: A basic script would use commands like systemctl or pgrep to check the service status.
+bash
+#!/bin/bash
+SERVICE_NAME="your_service_name"
+
+if ! pgrep "$SERVICE_NAME" > /dev/null
+then
+    echo "$SERVICE_NAME is not running. Attempting to restart..."
+    # Command to restart the service (e.g., sudo systemctl restart $SERVICE_NAME)
+else
+    echo "$SERVICE_NAME is running."
+fi
+
+Q: How do you roll back a deployment using a script in case of failure?
+
+A: An effective script leverages versioned artifacts or environment management tools (like Kubernetes or Infrastructure as Code tools). The script would typically:
+Detect the failure by monitoring the exit status of the deployment command.
+Trigger a command to redeploy the previous, known-good artifact version or switch traffic back to a stable environment (e.g., in a blue-green deployment strategy). 
+
+3. Pipeline Configuration (YAML)
+
+Q: Write a simple YAML configuration for a CI/CD pipeline using GitHub Actions that builds a Node.js application and runs tests.
+A:
+yaml
+name: Node.js CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install dependencies
+      run: npm install
+    - name: Run tests
+      run: npm test
+This script defines a pipeline that triggers on push or pull_request, sets up a Node.js environment, installs dependencies, and runs automated tests. 
+4. Problem-Solving and Best Practices
+
+Q: How do you troubleshoot a broken CI pipeline?
+
+A: The first step is to review the detailed logs provided by the CI server (e.g., Jenkins, GitLab CI). Look for specific error messages, failed command exit codes, or dependency mismatches. Replicating the build locally in an identical (ideally containerized) environment can help isolate the issue.
+
+Q: How can you optimize tests in a CI pipeline for speed?
+
+A: Strategies include running tests in parallel across multiple machines/containers, using caching for dependencies (so they don't download every time), identifying and fixing "flaky" tests that intermittently fail, and prioritizing faster unit tests earlier in the pipeline. 
