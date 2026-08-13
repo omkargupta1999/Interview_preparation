@@ -1,0 +1,356 @@
+Claude_LinkedIn_Naukri_Job_Search_Application_Workflow
+How to Find & Apply for Jobs Using Claude + LinkedIn + Naukri
+
+Complete Step-by-Step Workflow
+
+Overview
+In this workflow, Claude is used as a job-search and application assistant. LinkedIn is the primary source of truth for your professional profile, while Naukri is used to find and apply to relevant job openings.
+
+The complete flow is:
+Install Claude Extension → Login to LinkedIn + Naukri → Open LinkedIn Profile → Open Claude Extension → Paste Prompt → Claude Analyzes Profile → Searches Naukri → Shortlists Jobs → Opens Jobs in Tabs → Review Jobs → Ask Claude to Apply → Review → Submit → Track Applications.
+
+Step 1 — Install the Claude Chrome Extension
+1. Open Google Chrome on your computer.
+2. Open a new browser tab and go to Google.
+3. Search for: “Claude Chrome Extension”.
+4. Open the relevant Chrome Web Store result.
+5. Click “Add to Chrome” and complete the installation.
+6. Once installed, Claude will be available through the Chrome Extensions menu.
+
+Step 2 — Login to LinkedIn and Naukri
+Both LinkedIn and Naukri must be logged in within the same Chrome browser.
+
+LinkedIn:
+• Log in to LinkedIn.
+• Open your complete LinkedIn profile.
+• Make sure your profile contains your About section, experience, skills, projects, education, certifications, achievements, technologies, job titles and other relevant information.
+
+Naukri:
+• Open Naukri.com in another tab.
+• Log in to your Naukri account.
+• Keep the session active before starting the Claude workflow.
+
+This is important because Claude needs access to the logged-in browser session when navigating between the two websites.
+
+Step 3 — Open Your LinkedIn Profile
+Go to your own LinkedIn profile.
+
+LinkedIn should be treated as the primary source of truth for understanding your professional background.
+
+Claude should use the profile to understand:
+• Total experience
+• Current role
+• Previous companies and roles
+• Technical skills
+• Programming languages
+• Frameworks
+• Cloud technologies
+• Databases
+• Projects
+• Certifications
+• Education
+• Achievements
+• Domain experience
+• Profile keywords
+• Seniority
+
+Step 4 — Open the Claude Extension
+1. While you are on your LinkedIn profile, go to the top-right corner of Chrome.
+2. Click the Extensions icon (puzzle-piece icon).
+3. Find the Claude extension.
+4. Click Claude.
+5. Claude will open in a browser side window.
+
+You are now ready to give Claude the job-search instructions.
+
+Step 5 — Paste the Master Job Search Prompt
+Before pressing Enter, make sure:
+• LinkedIn is logged in.
+• Naukri is logged in.
+• You are currently on your LinkedIn profile.
+• Claude Extension is open.
+
+Replace [ROLE] with the role you want to target and [LOCATION] with your preferred location.
+
+Example:
+ROLE: SDE 3
+LOCATION: Bangalore
+
+Then paste the following prompt:
+
+Use my LinkedIn profile as the primary source of truth. Analyze my complete profile, including work experience, technical skills, projects, certifications, education, achievements, and keywords.
+
+Based on this analysis, search Naukri.com for job openings for [ROLE] in [LOCATION] that satisfy all of the following conditions:
+
+• Posted within the last 24 hours.
+• Have fewer than 50 applicants, wherever applicant count is available.
+• Strongly match my experience, skills, and profile keywords.
+• Avoid weak matches.
+• Prioritize jobs that maximize my chances of getting shortlisted.
+• Exclude duplicate listings.
+• Exclude expired listings.
+
+For each matching job, provide:
+
+• Job Title
+• Company Name
+• Location
+• Salary, if available
+• Experience Required
+• Applicant Count, if available
+• Why it matches my profile
+• Matching skills
+• Missing skills, if any
+• Match Score
+• Direct Naukri application link
+• Job posting date
+
+Rank the jobs from best match to least match and return only high-confidence matches.
+
+Use the actual job description to evaluate the match rather than relying only on the job title.
+
+Compare my LinkedIn profile against the actual requirements, responsibilities, technologies, experience level, and seniority mentioned in each job description.
+
+Do not include a job merely because it contains a few keywords from my profile.
+
+Optimize the ranking for:
+
+Probability of getting shortlisted > keyword similarity > number of available jobs.
+
+If there are only a few high-confidence matches, return only those matches. Do not include weak jobs just to increase the number of results.
+
+Verify that each job is still active before including it in the final list.
+
+After identifying the high-confidence jobs, open the shortlisted job listings in separate browser tabs so I can review them.
+
+Step 6 — Press Enter
+Once you have pasted the prompt, press Enter.
+
+Claude will:
+1. Analyze your LinkedIn profile.
+2. Understand your experience and skills.
+3. Open/search Naukri.
+4. Search for the specified role.
+5. Filter according to location.
+6. Check recently posted jobs.
+7. Check applicant count where available.
+8. Compare job descriptions with your LinkedIn profile.
+9. Remove weak matches.
+10. Remove duplicates.
+11. Remove expired jobs.
+12. Rank the strongest opportunities.
+13. Give you the final shortlist.
+14. Open the shortlisted jobs in separate browser tabs.
+
+Step 7 — Claude Opens Relevant Jobs
+After finding the relevant jobs, Claude can open shortlisted listings in separate browser tabs.
+
+You may have:
+• Tab 1: LinkedIn Profile
+• Tab 2: Naukri
+• Tab 3: Job 1
+• Tab 4: Job 2
+• Tab 5: Job 3
+• Additional tabs for other shortlisted jobs
+
+Claude should also provide the job details in its response.
+
+Step 8 — Analyze the Shortlisted Jobs
+Review every shortlisted job.
+
+Check:
+• Job title — Does it match the role you want?
+• Company — Is it a company you are interested in?
+• Location — Does the location work for you?
+• Experience — Does the required experience fit?
+• Technical skills — How much of the required stack do you already know?
+• Responsibilities — Does the actual work match your background?
+• Applicant count — Prefer lower applicant counts when other factors are comparable.
+
+Do not rely only on keyword overlap. A job containing Java, AWS or Spring Boot is not automatically a strong match if the actual responsibilities are significantly different from your experience.
+
+Step 9 — Ask Claude to Re-Rank Jobs
+You can ask Claude:
+
+“Analyze these shortlisted jobs again and tell me which ones have the highest probability of getting me shortlisted. Rank them from highest probability to lowest probability and explain why.”
+
+This gives you a second-level review before applying.
+
+Step 10 — Decide Which Jobs to Apply To
+Do not blindly apply to every job Claude finds.
+
+Select the jobs you are genuinely interested in.
+
+For example:
+“Apply to Job 1, Job 3, Job 5 and Job 7.”
+
+Or:
+“I want to apply only to jobs where my profile match is above 85% and where the core technical requirements match my experience.”
+
+Step 11 — Ask Claude to Apply
+Once you have approved the jobs, tell Claude:
+
+“Apply to the shortlisted jobs that I have approved.
+
+Use my existing Naukri profile information.
+
+Do not fabricate or modify any information about my experience, education, skills, companies, projects, or achievements.
+
+If any application asks a question that requires information not available in my profile, stop and ask me before submitting.
+
+Before final submission, show me what will be submitted for each application.”
+
+Claude can then navigate through the Naukri application flow.
+
+Step 12 — Review Before Final Submission
+Before allowing Claude to submit an application, review:
+• Company
+• Job title
+• Location
+• Resume
+• Experience
+• Notice period
+• Expected salary
+• Skills
+• Application questions
+• Any additional information
+
+If everything is correct, allow Claude to proceed.
+
+For questions requiring a personalized or subjective answer, review the answer yourself before submission.
+
+Step 13 — Submit the Application
+Once everything is verified, Claude can complete the application process for the approved job.
+
+After successful submission, record:
+• Company
+• Job title
+• Location
+• Date applied
+• Job URL
+• Match score
+• Applicant count
+• Important notes
+
+Step 14 — Repeat the Process
+Repeat the workflow whenever you want to search for new opportunities.
+
+Example:
+
+Target Role: SDE 3
+Location: Bangalore
+
+Later:
+
+Target Role: Staff Software Engineer
+Location: Hyderabad
+
+Or:
+
+Target Role: Senior Backend Engineer
+Location: Pune
+
+The LinkedIn profile remains the source of truth, while role and location can change depending on your target opportunities.
+
+Step 15 — Application Quality Rules
+1. LinkedIn is the Source of Truth
+Claude should primarily use your LinkedIn profile to understand your professional background.
+
+2. Do Not Apply to Weak Matches
+The goal is not to apply to hundreds of jobs. The goal is to identify jobs where you have a high probability of getting shortlisted.
+
+3. Do Not Fabricate Information
+Claude should never invent experience, skills, certifications, projects, job titles, companies, education or achievements.
+
+4. Verify Before Submission
+Claude can help automate the process, but you should retain control over final submission, especially for questions requiring personal or subjective answers.
+
+5. Prefer Quality Over Quantity
+Use:
+LinkedIn Profile → Strong Job Matching → High-Confidence Shortlist → Review → Apply
+
+rather than:
+Search → Apply to Everything.
+
+Complete Workflow
+OPEN CHROME
+↓
+SEARCH “CLAUDE CHROME EXTENSION”
+↓
+INSTALL CLAUDE EXTENSION
+↓
+LOGIN TO LINKEDIN
+↓
+LOGIN TO NAUKRI
+↓
+OPEN YOUR LINKEDIN PROFILE
+↓
+CLICK CHROME EXTENSIONS
+↓
+OPEN CLAUDE
+↓
+PASTE MASTER PROMPT
+↓
+ENTER ROLE + LOCATION
+↓
+PRESS ENTER
+↓
+CLAUDE ANALYZES LINKEDIN
+↓
+CLAUDE SEARCHES NAUKRI
+↓
+FILTERS JOBS
+• Last 24 hours
+• Fewer than 50 applicants, when available
+• Strong profile match
+• Correct location
+• Correct experience
+• Active listing
+• No duplicates
+↓
+CLAUDE RANKS JOBS
+↓
+CLAUDE OPENS JOBS IN DIFFERENT TABS
+↓
+YOU REVIEW THE SHORTLIST
+↓
+SELECT JOBS TO APPLY
+↓
+TELL CLAUDE TO APPLY
+↓
+CLAUDE FILLS APPLICATION
+↓
+YOU REVIEW IMPORTANT INFORMATION
+↓
+CLAUDE SUBMITS APPLICATION
+↓
+TRACK THE APPLICATION
+
+Final Goal
+The objective is to turn Claude into a personal job-search and application assistant.
+
+Instead of manually searching hundreds of Naukri listings every day:
+
+Your LinkedIn Profile
+↓
+Claude understands your profile
+↓
+Naukri search
+↓
+AI-powered job matching
+↓
+High-confidence shortlist
+↓
+Job tabs opened
+↓
+You approve the best opportunities
+↓
+Claude helps complete the applications
+↓
+You review and approve final submissions
+↓
+Applications submitted and tracked
+
+The key principle is:
+
+Don’t optimize for the number of jobs you apply to. Optimize for the probability of getting shortlisted.
